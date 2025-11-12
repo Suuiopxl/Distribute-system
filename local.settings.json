@@ -1,0 +1,10 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "AzureWebJobsStorage": "",
+    "SqlConnectionString": "Driver={ODBC Driver 18 for SQL Server};Server=tcp:cwk2-sql-71e8ef.database.windows.net,1433;Database=cwk2db;Uid=sqladmin;Pwd=GaryChen@0713;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
+  },
+  "ConnectionStrings": {},
+  "Host": {}
+}
