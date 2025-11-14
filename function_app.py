@@ -1,33 +1,51 @@
-import azure.functions as func
-import json
+import os
 import random
+import datetime
+import pyodbc
+import azure.functions as func
 import logging
-from blueprint import blueprint
+import time
 
+app = func.FunctionApp()
 
-app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
-app.register_functions(blueprint)
+def get_conn():
+    conn_str = os.environ["SqlConnectionString"]
+    return pyodbc.connect(conn_str)
 
-@app.function_name(name="generate_sensor_data")
-@app.route(route="generate_sensor_data")
-def generate_sensor_data(req: func.HttpRequest) -> func.HttpResponse:
-    logging.info("Generating simulated IoT sensor data...")
+def generate_snapshot(num_sensors=20, batches=1):
+    rows = []
+    for _ in range(batches):
+        for sensor_id in range(1, num_sensors + 1):
+            rows.append((
+                sensor_id,
+                round(random.uniform(5.0, 30.0), 2),     # temperature
+                round(random.uniform(0.0, 40.0), 2),     # wind mph
+                random.randint(20, 90),                 # rel humidity
+                random.randint(350, 2000),              # co2 ppm
+                datetime.datetime.utcnow()              # timestamp
+            ))
+    return rows
 
-    sensors = []
-    for sensor_id in range(1, 21):
-        data = {
-            "sensor_id": sensor_id,
-            "temperature": round(random.uniform(5, 18), 1),
-            "wind_speed": round(random.uniform(12, 24), 1),
-            "humidity": round(random.uniform(30, 60), 1),
-            "co2": random.randint(400, 1600)
-        }
-        sensors.append(data)
+@app.timer_trigger(schedule="*/10 * * * * *", arg_name="myTimer")
+def store_data(myTimer: func.TimerRequest):
+    num_sensors = 20 
+    batches = 50   
 
-    result_json = json.dumps(sensors, indent=2)
+    logging.info(f"[RUN] Generating data: sensors={num_sensors}, batches={batches}")
+    start = time.time()
 
-    return func.HttpResponse(
-        result_json,
-        status_code=200,
-        mimetype="application/json"
-    )
+    data = generate_snapshot(num_sensors, batches)
+
+    conn = get_conn()
+    cursor = conn.cursor()
+    cursor.fast_executemany = True
+    cursor.executemany("""
+        INSERT INTO dbo.SensorReadings
+            (sensor_id, temperature, wind_mph, rel_humidity, co2_ppm, ts_utc)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, data)
+    conn.commit()
+    conn.close()
+
+    elapsed = time.time() - start
+    logging.info(f"[PERF] sensors={num_sensors}, batches={batches}, rows={len(data)}, time={elapsed:.3f}s")
