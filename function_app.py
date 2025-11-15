@@ -5,8 +5,10 @@ import pyodbc
 import azure.functions as func
 import logging
 import time
+from blueprint import blueprint
 
 app = func.FunctionApp()
+app.register_functions(blueprint)
 
 def get_conn():
     conn_str = os.environ["SqlConnectionString"]
