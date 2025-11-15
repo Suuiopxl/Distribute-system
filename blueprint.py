@@ -70,10 +70,7 @@ def calculate_statistics(req: func.HttpRequest) -> func.HttpResponse:
 
     except Exception as e:
         logging.error(f"Error while calculating statistics: {e}")
-        return func.HttpResponse(
-            f"Database query failed: {e}",
-            status_code=500
-        )
+        return func.HttpResponse(f"Database query failed: {e}", status_code=500)
 
     finally:
         if 'conn' in locals():
